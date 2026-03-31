@@ -1,0 +1,22 @@
+name: wildberries-mcp
+description: Wildberries Seller API MCP server. 12 tools with production-grade rate limiting and 409 penalty protection.
+version: 0.2.0
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      WB_API_TOKEN:
+        type: string
+        description: "Wildberries Seller API token (JWT, 180-day validity). Get at https://seller.wildberries.ru/supplier-settings/access-to-api"
+    required:
+      - WB_API_TOKEN
+  commandFunction: |-
+    (config) => ({
+      command: "node",
+      args: ["dist/index.js"],
+      env: {
+        WB_API_TOKEN: config.WB_API_TOKEN
+      }
+    })
