@@ -1,6 +1,6 @@
 {
   "name": "wildberries-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Wildberries Seller API MCP server. 12 tools. Production-grade rate limiting with 409 penalty protection.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
