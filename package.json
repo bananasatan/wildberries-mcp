@@ -1,7 +1,7 @@
 {
-  "name": "wildberries-mcp",
-  "version": "0.2.0",
-  "description": "Wildberries Seller API MCP server. 12 tools. Production-grade rate limiting with 409 penalty protection.",
+  "name": "@theyahia/wildberries-mcp",
+  "version": "0.3.3",
+  "description": "Wildberries Seller API MCP server. 15 tools. Production-grade rate limiting with 409 penalty protection.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && npm test"
   },
   "repository": {
     "type": "git",
@@ -25,18 +25,35 @@
   "keywords": [
     "wildberries",
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "seller-api",
-    "marketplace"
+    "marketplace",
+    "russian-api",
+    "e-commerce",
+    "claude",
+    "ai",
+    "fastmcp",
+    "ai-tools",
+    "ai-agents",
+    "developer-tools",
+    "llm",
+    "agentic-framework",
+    "automation",
+    "seller-tools"
   ],
-  "author": "theYahia",
+  "author": "theYahia (https://github.com/theYahia)",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "mcpName": "io.github.theYahia/wildberries-mcp",
   "bugs": {
     "url": "https://github.com/theYahia/wildberries-mcp/issues"
   },
   "homepage": "https://github.com/theYahia/wildberries-mcp#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

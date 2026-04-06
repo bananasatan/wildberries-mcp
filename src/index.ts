@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Wildberries Seller API MCP Server.
- * 12 tools. Production-grade rate limiting with 409 penalty protection.
+ * 15 tools. Production-grade rate limiting with 409 penalty protection.
  *
  * Usage:
  *   WB_API_TOKEN=... wildberries-mcp          # stdio transport
@@ -26,10 +26,10 @@ const client = new WBClient({ token: WB_API_TOKEN });
 
 const server = new McpServer({
   name: "wildberries-mcp",
-  version: "0.2.0",
+  version: "0.3.3",
 });
 
-// Register all 12 tools
+// Register all 15 tools
 for (const [name, def] of Object.entries(toolDefinitions)) {
   const toolName = name as ToolName;
   server.tool(

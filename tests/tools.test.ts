@@ -7,14 +7,15 @@ function createMockClient(): WBClient {
     get: vi.fn().mockResolvedValue({ data: "mock-get" }),
     post: vi.fn().mockResolvedValue({ data: "mock-post" }),
     put: vi.fn().mockResolvedValue({ data: "mock-put" }),
+    patch: vi.fn().mockResolvedValue({ data: "mock-patch" }),
     request: vi.fn().mockResolvedValue({ data: "mock" }),
   } as unknown as WBClient;
 }
 
 describe("Tool definitions", () => {
-  it("should have exactly 12 tools", () => {
+  it("should have exactly 15 tools", () => {
     const tools = Object.keys(toolDefinitions);
-    expect(tools).toHaveLength(12);
+    expect(tools).toHaveLength(15);
   });
 
   it("should include all required tool names", () => {
@@ -135,6 +136,42 @@ describe("Tool handlers", () => {
     expect(client.get).toHaveBeenCalledWith("/api/v1/feedbacks", {
       take: "20",
       order: "dateAsc",
+    });
+  });
+
+  it("get_stocks calls POST /api/v3/stocks/{warehouseId}", async () => {
+    const skus = ["SKU-1", "SKU-2"];
+    await handleTool(client, "get_stocks", { warehouseId: 99, skus });
+    expect(client.post).toHaveBeenCalledWith("/api/v3/stocks/99", { skus });
+  });
+
+  it("get_stocks uses empty skus array when omitted", async () => {
+    await handleTool(client, "get_stocks", { warehouseId: 99 });
+    expect(client.post).toHaveBeenCalledWith("/api/v3/stocks/99", { skus: [] });
+  });
+
+  it("get_abc_analysis calls GET /api/v1/supplier/reportDetailByPeriod and returns summary+items", async () => {
+    (client.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [
+        { nm_id: 1, sa_name: "Prod A", retail_amount: 800, quantity: 10 },
+        { nm_id: 2, sa_name: "Prod B", retail_amount: 150, quantity: 5 },
+        { nm_id: 3, sa_name: "Prod C", retail_amount: 50, quantity: 2 },
+      ],
+    });
+    const result = await handleTool(client, "get_abc_analysis", {
+      dateFrom: "2024-01-01T00:00:00Z",
+      dateTo: "2024-01-31T00:00:00Z",
+    }) as { summary: { A: number; B: number; C: number; totalProducts: number }; items: unknown[] };
+    expect(result.summary.totalProducts).toBe(3);
+    expect(result.summary.A).toBe(1); // Prod A = 80% revenue → class A
+    expect(result.items).toHaveLength(3);
+  });
+
+  it("reply_feedback calls PATCH /api/v1/feedbacks", async () => {
+    await handleTool(client, "reply_feedback", { id: "fb-123", text: "Спасибо!" });
+    expect(client.patch).toHaveBeenCalledWith("/api/v1/feedbacks", {
+      id: "fb-123",
+      text: "Спасибо!",
     });
   });
 

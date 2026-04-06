@@ -100,4 +100,8 @@ export class WBClient {
   async put<T = unknown>(path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
     return this.request<T>("PUT", path, body, params);
   }
+
+  async patch<T = unknown>(path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
+    return this.request<T>("PATCH", path, body, params);
+  }
 }

@@ -1,10 +1,10 @@
-# wildberries-mcp
+# @theyahia/wildberries-mcp
 
-Wildberries Seller API MCP server. 12 tools. Production-grade rate limiting with 409 penalty protection.
+Wildberries Seller API MCP server. 15 tools. Production-grade rate limiting with 409 penalty protection.
 
 ## Features
 
-- **12 tools** covering products, prices, stocks, orders, sales, warehouses, supplies, statistics, and feedbacks
+- **15 tools** covering products, prices, stocks, orders, sales, warehouses, supplies, statistics, feedbacks, and ABC analysis
 - **Production-grade rate limiter**: token bucket (300 req/min), 200ms minimum interval, automatic 409 penalty handling
 - **409 penalty protection**: parses `X-Ratelimit-Remaining` and `X-Ratelimit-Retry-After` headers, waits the required duration
 - **Streamable HTTP transport** (`--http` flag) for web deployments
@@ -13,7 +13,7 @@ Wildberries Seller API MCP server. 12 tools. Production-grade rate limiting with
 ## Quick Start
 
 ```bash
-npm install -g wildberries-mcp
+npm install -g @theyahia/wildberries-mcp
 
 # stdio transport (for Claude Desktop, Cursor, etc.)
 WB_API_TOKEN=your_token wildberries-mcp
@@ -33,7 +33,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "wildberries": {
       "command": "npx",
-      "args": ["-y", "wildberries-mcp"],
+      "args": ["-y", "@theyahia/wildberries-mcp"],
       "env": {
         "WB_API_TOKEN": "your_token_here"
       }
@@ -45,7 +45,7 @@ Add to `claude_desktop_config.json`:
 ### Smithery
 
 ```bash
-npx @smithery/cli install wildberries-mcp
+npx @smithery/cli install @theyahia/wildberries-mcp
 ```
 
 ## Auth
@@ -54,7 +54,7 @@ Authorization: `Bearer {WB_API_TOKEN}` (JWT, 180-day validity).
 
 Get your token at: https://seller.wildberries.ru/supplier-settings/access-to-api
 
-## Tools (12)
+## Tools (15)
 
 | Tool | Method | Endpoint |
 |------|--------|----------|
@@ -62,6 +62,7 @@ Get your token at: https://seller.wildberries.ru/supplier-settings/access-to-api
 | `get_product` | POST | `/content/v2/get/cards/detail` |
 | `update_prices` | POST | `/api/v2/upload/task` |
 | `update_stocks` | PUT | `/api/v3/stocks/{warehouseId}` |
+| `get_stocks` | POST | `/api/v3/stocks/{warehouseId}` |
 | `get_orders` | GET | `/api/v3/orders` |
 | `get_new_orders` | GET | `/api/v3/orders/new` |
 | `get_sales` | GET | `/api/v1/supplier/sales` |
@@ -70,6 +71,8 @@ Get your token at: https://seller.wildberries.ru/supplier-settings/access-to-api
 | `create_supply` | POST | `/api/v3/supplies` |
 | `get_statistics` | GET | `/api/v1/supplier/reportDetailByPeriod` |
 | `get_feedbacks` | GET | `/api/v1/feedbacks` |
+| `reply_feedback` | PATCH | `/api/v1/feedbacks` |
+| `get_abc_analysis` | GET | `/api/v1/supplier/reportDetailByPeriod` (computed) |
 
 ## Rate Limiting
 

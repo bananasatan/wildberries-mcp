@@ -157,6 +157,43 @@ export const toolDefinitions = {
       },
     },
   },
+  get_stocks: {
+    description: "Get current stock levels for a specific warehouse",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        warehouseId: { type: "number", description: "Warehouse ID (use get_warehouses to get IDs)" },
+        skus: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of barcodes/SKUs to check (leave empty for all stocks)",
+        },
+      },
+      required: ["warehouseId"],
+    },
+  },
+  get_abc_analysis: {
+    description: "Compute ABC analysis of products by sales revenue. A = top 20% products generating 80% revenue, B = next 15%, C = bottom 5%. Use this to identify best-selling and slow-moving items.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        dateFrom: { type: "string", description: "Start date (RFC3339, e.g. 2025-01-01T00:00:00Z)" },
+        dateTo: { type: "string", description: "End date (RFC3339)" },
+      },
+      required: ["dateFrom", "dateTo"],
+    },
+  },
+  reply_feedback: {
+    description: "Post a reply to a customer review on Wildberries",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "string", description: "Feedback ID" },
+        text: { type: "string", description: "Reply text" },
+      },
+      required: ["id", "text"],
+    },
+  },
 } as const;
 
 // ---------- Tool handlers ----------
@@ -251,6 +288,88 @@ export async function handleTool(
       if (args.skip) params.skip = String(args.skip);
       if (args.order) params.order = String(args.order);
       return client.get("/api/v1/feedbacks", params);
+    }
+
+    case "get_stocks": {
+      const warehouseId = args.warehouseId as number;
+      const skus = (args.skus as string[] | undefined) ?? [];
+      // WB API v3: POST /api/v3/stocks/{warehouseId} with skus array
+      // Empty array returns all stocks for the warehouse
+      return client.post(`/api/v3/stocks/${warehouseId}`, { skus });
+    }
+
+    case "get_abc_analysis": {
+      // Fetch statistics report for the period
+      const params: Record<string, string> = {
+        dateFrom: args.dateFrom as string,
+        dateTo: args.dateTo as string,
+        limit: "100000",
+        rrdid: "0",
+      };
+      const raw = await client.get<{ data?: Array<{
+        nm_id: number;
+        sa_name: string;
+        retail_amount: number;
+        quantity: number;
+      }> }>("/api/v1/supplier/reportDetailByPeriod", params);
+
+      const rows = raw.data ?? [];
+
+      // Group by nm_id, sum retail_amount
+      const grouped = new Map<number, { name: string; revenue: number; orders: number }>();
+      for (const row of rows) {
+        const existing = grouped.get(row.nm_id);
+        if (existing) {
+          existing.revenue += row.retail_amount ?? 0;
+          existing.orders += row.quantity ?? 0;
+        } else {
+          grouped.set(row.nm_id, {
+            name: row.sa_name ?? String(row.nm_id),
+            revenue: row.retail_amount ?? 0,
+            orders: row.quantity ?? 0,
+          });
+        }
+      }
+
+      // Sort by revenue descending
+      const items = Array.from(grouped.entries())
+        .map(([nmId, v]) => ({ nmId, ...v }))
+        .sort((a, b) => b.revenue - a.revenue);
+
+      const totalRevenue = items.reduce((s, i) => s + i.revenue, 0);
+
+      // Assign ABC class
+      let cumulative = 0;
+      const result = items.map((item) => {
+        cumulative += item.revenue;
+        const cumulativeShare = totalRevenue > 0 ? cumulative / totalRevenue : 0;
+        const abcClass = cumulativeShare <= 0.8 ? "A" : cumulativeShare <= 0.95 ? "B" : "C";
+        return {
+          nmId: item.nmId,
+          name: item.name,
+          revenue: Math.round(item.revenue),
+          orders: item.orders,
+          revenueShare: totalRevenue > 0 ? Math.round((item.revenue / totalRevenue) * 10000) / 100 : 0,
+          class: abcClass,
+        };
+      });
+
+      const summary = {
+        A: result.filter((i) => i.class === "A").length,
+        B: result.filter((i) => i.class === "B").length,
+        C: result.filter((i) => i.class === "C").length,
+        totalProducts: result.length,
+        totalRevenue: Math.round(totalRevenue),
+      };
+
+      return { summary, items: result };
+    }
+
+    case "reply_feedback": {
+      return client.patch("/api/v1/feedbacks", {
+        id: args.id,
+        text: args.text,
+      });
     }
 
     default:
