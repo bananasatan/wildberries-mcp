@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { toolDefinitions, handleTool, type ToolName } from "../src/tools.js";
+import { toolDefinitions, handleTool, enrichWithDrr, type ToolName } from "../src/tools.js";
 import type { WBClient } from "../src/client.js";
 
 function createMockClient(): WBClient {
@@ -190,7 +190,7 @@ describe("Tool handlers", () => {
     expect(client.getAdv).toHaveBeenCalledWith("/adv/v1/promotion/count");
   });
 
-  it("get_campaign_stats calls GET /adv/v3/fullstats with joined ids", async () => {
+  it("get_campaign_stats calls GET /adv/v3/fullstats with joined ids and beginDate/endDate", async () => {
     await handleTool(client, "get_campaign_stats", {
       ids: [111, 222],
       dateFrom: "2026-05-01",
@@ -198,9 +198,26 @@ describe("Tool handlers", () => {
     });
     expect(client.getAdv).toHaveBeenCalledWith("/adv/v3/fullstats", {
       ids: "111,222",
-      from: "2026-05-01",
-      to: "2026-05-13",
+      beginDate: "2026-05-01",
+      endDate: "2026-05-13",
     });
+  });
+
+  it("get_campaign_stats enriches response with drr field", async () => {
+    (client.getAdv as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        advertId: 999,
+        sum: 500,
+        sum_price: 2000,
+        days: [{ sum: 100, sum_price: 400 }, { sum: 50, sum_price: 0 }],
+      },
+    ]);
+    const result = (await handleTool(client, "get_campaign_stats", {
+      ids: [999],
+    })) as Array<{ drr: number; days: Array<{ drr: number | null }> }>;
+    expect(result[0].drr).toBe(25); // 500 / 2000 = 25%
+    expect(result[0].days[0].drr).toBe(25); // 100 / 400
+    expect(result[0].days[1].drr).toBeNull(); // sum_price = 0
   });
 
   it("pause_campaign calls GET /adv/v0/pause with id", async () => {
@@ -222,5 +239,35 @@ describe("Tool handlers", () => {
     await expect(
       handleTool(client, "get_campaign_stats", { ids: [] }),
     ).rejects.toThrow("at least 1 campaign id");
+  });
+});
+
+describe("enrichWithDrr", () => {
+  it("computes drr at every level recursively", () => {
+    const input = {
+      sum: 1000,
+      sum_price: 4000,
+      days: [
+        {
+          sum: 300,
+          sum_price: 1500,
+          apps: [{ sum: 200, sum_price: 0 }],
+        },
+      ],
+    };
+    const out = enrichWithDrr(input) as {
+      drr: number;
+      days: Array<{ drr: number; apps: Array<{ drr: number | null }> }>;
+    };
+    expect(out.drr).toBe(25);
+    expect(out.days[0].drr).toBe(20);
+    expect(out.days[0].apps[0].drr).toBeNull();
+  });
+
+  it("leaves nodes without sum/sum_price untouched", () => {
+    const input = { advertId: 1, name: "x", nested: { foo: "bar" } };
+    const out = enrichWithDrr(input) as Record<string, unknown> & { drr?: number };
+    expect(out.drr).toBeUndefined();
+    expect((out.nested as Record<string, unknown>).drr).toBeUndefined();
   });
 });

@@ -251,7 +251,7 @@ export const toolDefinitions = {
   },
   get_campaign_stats: {
     description:
-      "Get statistics for campaigns (any type) over a period (max 31 days). Returns impressions, clicks, CTR, spend, orders, revenue, CPC, CR — per day per campaign. Only for campaigns in statuses 7, 9, 11. STRICT rate limit: 3 requests per MINUTE (1 every 20 sec). Use sparingly.",
+      "Get statistics for campaigns (any type) over a period (max 31 days). Returns per campaign / day / app / nmId: views, clicks, ctr, cpc, cr, atbs (add-to-basket), orders, shks (units sold), sum (ad spend ₽), sum_price (revenue from ads ₽), and computed drr (доля рекламных расходов = sum/sum_price × 100, %) added by this server at every aggregation level. Only for campaigns in statuses 7, 9, 11. STRICT rate limit: 3 requests per MINUTE (1 every 20 sec). Use sparingly.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -311,6 +311,34 @@ export const toolDefinitions = {
     },
   },
 } as const;
+
+// ---------- Helpers ----------
+
+/**
+ * Recursively walks a fullstats response and adds a computed `drr` field
+ * (доля рекламных расходов, %) on any node that has numeric `sum` and `sum_price`.
+ * drr = sum / sum_price × 100, rounded to 2 decimals. null when sum_price is 0.
+ */
+export function enrichWithDrr(node: unknown): unknown {
+  if (Array.isArray(node)) {
+    return node.map(enrichWithDrr);
+  }
+  if (node && typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+    const enriched: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      enriched[key] = enrichWithDrr(value);
+    }
+    const sum = obj.sum;
+    const sumPrice = obj.sum_price;
+    if (typeof sum === "number" && typeof sumPrice === "number") {
+      enriched.drr =
+        sumPrice > 0 ? Math.round((sum / sumPrice) * 10000) / 100 : null;
+    }
+    return enriched;
+  }
+  return node;
+}
 
 // ---------- Tool handlers ----------
 
@@ -519,9 +547,10 @@ export async function handleTool(
         throw new Error("get_campaign_stats requires at least 1 campaign id");
       }
       const params: Record<string, string> = { ids: ids.join(",") };
-      if (args.dateFrom) params.from = String(args.dateFrom);
-      if (args.dateTo) params.to = String(args.dateTo);
-      return client.getAdv("/adv/v3/fullstats", params);
+      if (args.dateFrom) params.beginDate = String(args.dateFrom);
+      if (args.dateTo) params.endDate = String(args.dateTo);
+      const raw = await client.getAdv<unknown>("/adv/v3/fullstats", params);
+      return enrichWithDrr(raw);
     }
 
     case "pause_campaign":
