@@ -1,7 +1,7 @@
 {
-  "name": "@theyahia/wildberries-mcp",
-  "version": "0.3.3",
-  "description": "Wildberries Seller API MCP server. 15 tools. Production-grade rate limiting with 409 penalty protection.",
+  "name": "@bananasatan/wildberries-mcp",
+  "version": "0.4.0",
+  "description": "Wildberries Seller + Promotion API MCP server. 23 tools (15 seller + 8 advertising). Fork of @theyahia/wildberries-mcp with added campaign management for AI-driven ad analysis.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/theYahia/wildberries-mcp.git"
+    "url": "git+https://github.com/bananasatan/wildberries-mcp.git"
   },
   "keywords": [
     "wildberries",
@@ -47,13 +47,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "mcpName": "io.github.theYahia/wildberries-mcp",
+  "mcpName": "io.github.bananasatan/wildberries-mcp",
   "bugs": {
-    "url": "https://github.com/theYahia/wildberries-mcp/issues"
+    "url": "https://github.com/bananasatan/wildberries-mcp/issues"
   },
-  "homepage": "https://github.com/theYahia/wildberries-mcp#readme",
+  "homepage": "https://github.com/bananasatan/wildberries-mcp#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "1.20.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

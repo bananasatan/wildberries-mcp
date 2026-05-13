@@ -8,14 +8,16 @@ function createMockClient(): WBClient {
     post: vi.fn().mockResolvedValue({ data: "mock-post" }),
     put: vi.fn().mockResolvedValue({ data: "mock-put" }),
     patch: vi.fn().mockResolvedValue({ data: "mock-patch" }),
+    getAdv: vi.fn().mockResolvedValue({ data: "mock-getAdv" }),
+    postAdv: vi.fn().mockResolvedValue({ data: "mock-postAdv" }),
     request: vi.fn().mockResolvedValue({ data: "mock" }),
   } as unknown as WBClient;
 }
 
 describe("Tool definitions", () => {
-  it("should have exactly 15 tools", () => {
+  it("should have exactly 23 tools", () => {
     const tools = Object.keys(toolDefinitions);
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(23);
   });
 
   it("should include all required tool names", () => {
@@ -179,5 +181,46 @@ describe("Tool handlers", () => {
     await expect(
       handleTool(client, "nonexistent" as ToolName, {}),
     ).rejects.toThrow("Unknown tool");
+  });
+
+  // ---------- Advertising / Promotion ----------
+
+  it("list_campaigns calls GET /adv/v1/promotion/count", async () => {
+    await handleTool(client, "list_campaigns", {});
+    expect(client.getAdv).toHaveBeenCalledWith("/adv/v1/promotion/count");
+  });
+
+  it("get_campaign_stats calls GET /adv/v3/fullstats with joined ids", async () => {
+    await handleTool(client, "get_campaign_stats", {
+      ids: [111, 222],
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-13",
+    });
+    expect(client.getAdv).toHaveBeenCalledWith("/adv/v3/fullstats", {
+      ids: "111,222",
+      from: "2026-05-01",
+      to: "2026-05-13",
+    });
+  });
+
+  it("pause_campaign calls GET /adv/v0/pause with id", async () => {
+    await handleTool(client, "pause_campaign", { id: 12345 });
+    expect(client.getAdv).toHaveBeenCalledWith("/adv/v0/pause", { id: "12345" });
+  });
+
+  it("resume_campaign calls GET /adv/v0/start with id", async () => {
+    await handleTool(client, "resume_campaign", { id: 12345 });
+    expect(client.getAdv).toHaveBeenCalledWith("/adv/v0/start", { id: "12345" });
+  });
+
+  it("get_adv_balance calls GET /adv/v1/balance", async () => {
+    await handleTool(client, "get_adv_balance", {});
+    expect(client.getAdv).toHaveBeenCalledWith("/adv/v1/balance");
+  });
+
+  it("get_campaign_stats throws when ids empty", async () => {
+    await expect(
+      handleTool(client, "get_campaign_stats", { ids: [] }),
+    ).rejects.toThrow("at least 1 campaign id");
   });
 });

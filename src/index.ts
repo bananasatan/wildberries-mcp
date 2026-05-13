@@ -26,7 +26,7 @@ const client = new WBClient({ token: WB_API_TOKEN });
 
 const server = new McpServer({
   name: "wildberries-mcp",
-  version: "0.3.3",
+  version: "0.4.0",
 });
 
 // Register all 15 tools

@@ -1,5 +1,7 @@
 /**
- * 12 MCP tools for Wildberries Seller API.
+ * 23 MCP tools for Wildberries Seller + Promotion APIs.
+ * 15 seller-side (products, prices, stocks, orders, sales, supplies, stats, feedbacks, ABC)
+ * + 8 advertising (campaigns, stats, pause/resume, budget, balance).
  */
 import type { WBClient } from "./client.js";
 
@@ -194,6 +196,120 @@ export const toolDefinitions = {
       required: ["id", "text"],
     },
   },
+
+  // ---------- Advertising / Promotion ----------
+
+  list_campaigns: {
+    description:
+      "List all advertising campaigns of the seller, grouped by type and status. Returns campaign IDs with last-change timestamps. Statuses: -1=deleted, 4=ready, 7=completed, 8=cancelled, 9=running (active impressions), 11=paused. Types: 4-8 legacy, 9 auction (manual bid). Rate limit: 5 req/sec.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  get_campaigns_info: {
+    description:
+      "Get detailed info for legacy campaigns (types 4-8) by status. Filter by status: -1=deleted, 4=ready, 7=completed, 8=cancelled, 9=running, 11=paused. For type 9 (auction) campaigns use get_auction_campaigns instead.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        status: {
+          type: "number",
+          description: "Campaign status filter: -1, 4, 7, 8, 9, or 11",
+        },
+        type: { type: "number", description: "Campaign type filter (4-8)" },
+        ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Optional: specific campaign IDs to fetch",
+        },
+      },
+    },
+  },
+  get_auction_campaigns: {
+    description:
+      "Get info for auction campaigns (type 9, manual bid). Filter by ids, statuses (-1,4,7,8,9,11), and payment_type (cpm = per-impression, cpc = per-click). Rate limit: 5 req/sec.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Campaign IDs (max 50)",
+        },
+        statuses: {
+          type: "array",
+          items: { type: "number" },
+          description: "Status filter array",
+        },
+        payment_type: {
+          type: "string",
+          description: "'cpm' (per impressions) or 'cpc' (per click)",
+        },
+      },
+    },
+  },
+  get_campaign_stats: {
+    description:
+      "Get statistics for campaigns (any type) over a period (max 31 days). Returns impressions, clicks, CTR, spend, orders, revenue, CPC, CR — per day per campaign. Only for campaigns in statuses 7, 9, 11. STRICT rate limit: 3 requests per MINUTE (1 every 20 sec). Use sparingly.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        ids: {
+          type: "array",
+          items: { type: "number" },
+          description: "Campaign IDs (1-100)",
+        },
+        dateFrom: {
+          type: "string",
+          description: "Start date YYYY-MM-DD (max 31 days span)",
+        },
+        dateTo: { type: "string", description: "End date YYYY-MM-DD" },
+      },
+      required: ["ids"],
+    },
+  },
+  pause_campaign: {
+    description:
+      "Pause a running campaign (status 9 → 11). Only campaigns currently running impressions can be paused. Rate limit: 5 req/sec.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "number", description: "Campaign ID" },
+      },
+      required: ["id"],
+    },
+  },
+  resume_campaign: {
+    description:
+      "Resume a paused or ready campaign (status 11 or 4 → 9). Rate limit: 5 req/sec.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "number", description: "Campaign ID" },
+      },
+      required: ["id"],
+    },
+  },
+  get_campaign_budget: {
+    description:
+      "Get current budget (max spend) for a specific campaign. Rate limit: 4 req/sec.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        id: { type: "number", description: "Campaign ID" },
+      },
+      required: ["id"],
+    },
+  },
+  get_adv_balance: {
+    description:
+      "Get current advertising account balance (bonus, balance, net).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
 } as const;
 
 // ---------- Tool handlers ----------
@@ -371,6 +487,54 @@ export async function handleTool(
         text: args.text,
       });
     }
+
+    // ---------- Advertising / Promotion ----------
+
+    case "list_campaigns":
+      return client.getAdv("/adv/v1/promotion/count");
+
+    case "get_campaigns_info": {
+      const params: Record<string, string> = {};
+      if (args.status !== undefined) params.status = String(args.status);
+      if (args.type !== undefined) params.type = String(args.type);
+      const body = Array.isArray(args.ids) ? args.ids : undefined;
+      return client.postAdv("/adv/v1/promotion/adverts", body, params);
+    }
+
+    case "get_auction_campaigns": {
+      const params: Record<string, string> = {};
+      if (Array.isArray(args.ids) && args.ids.length > 0) {
+        params.ids = (args.ids as number[]).join(",");
+      }
+      if (Array.isArray(args.statuses) && args.statuses.length > 0) {
+        params.statuses = (args.statuses as number[]).join(",");
+      }
+      if (args.payment_type) params.payment_type = String(args.payment_type);
+      return client.getAdv("/adv/v0/auction_adverts", params);
+    }
+
+    case "get_campaign_stats": {
+      const ids = args.ids as number[];
+      if (!ids || ids.length === 0) {
+        throw new Error("get_campaign_stats requires at least 1 campaign id");
+      }
+      const params: Record<string, string> = { ids: ids.join(",") };
+      if (args.dateFrom) params.from = String(args.dateFrom);
+      if (args.dateTo) params.to = String(args.dateTo);
+      return client.getAdv("/adv/v3/fullstats", params);
+    }
+
+    case "pause_campaign":
+      return client.getAdv("/adv/v0/pause", { id: String(args.id) });
+
+    case "resume_campaign":
+      return client.getAdv("/adv/v0/start", { id: String(args.id) });
+
+    case "get_campaign_budget":
+      return client.getAdv("/adv/v1/budget", { id: String(args.id) });
+
+    case "get_adv_balance":
+      return client.getAdv("/adv/v1/balance");
 
     default:
       throw new Error(`Unknown tool: ${name}`);

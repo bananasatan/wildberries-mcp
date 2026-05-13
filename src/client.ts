@@ -6,18 +6,21 @@ import { RateLimiter } from "./rate-limiter.js";
 export interface WBClientOptions {
   token: string;
   baseUrl?: string;
+  advBaseUrl?: string;
   maxRetries?: number;
 }
 
 export class WBClient {
   private readonly token: string;
   private readonly baseUrl: string;
+  private readonly advBaseUrl: string;
   private readonly limiter: RateLimiter;
   private readonly maxRetries: number;
 
   constructor(options: WBClientOptions) {
     this.token = options.token;
     this.baseUrl = options.baseUrl ?? "https://seller.wildberries.ru";
+    this.advBaseUrl = options.advBaseUrl ?? "https://advert-api.wildberries.ru";
     this.limiter = new RateLimiter(300, 200);
     this.maxRetries = options.maxRetries ?? 3;
   }
@@ -34,8 +37,9 @@ export class WBClient {
     path: string,
     body?: unknown,
     queryParams?: Record<string, string>,
+    baseUrlOverride?: string,
   ): Promise<T> {
-    let url = `${this.baseUrl}${path}`;
+    let url = `${baseUrlOverride ?? this.baseUrl}${path}`;
     if (queryParams) {
       const params = new URLSearchParams(queryParams);
       url += `?${params.toString()}`;
@@ -103,5 +107,15 @@ export class WBClient {
 
   async patch<T = unknown>(path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
     return this.request<T>("PATCH", path, body, params);
+  }
+
+  // ---------- Advertising API helpers (advert-api.wildberries.ru) ----------
+
+  async getAdv<T = unknown>(path: string, params?: Record<string, string>): Promise<T> {
+    return this.request<T>("GET", path, undefined, params, this.advBaseUrl);
+  }
+
+  async postAdv<T = unknown>(path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
+    return this.request<T>("POST", path, body, params, this.advBaseUrl);
   }
 }
